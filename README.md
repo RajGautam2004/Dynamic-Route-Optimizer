@@ -7,7 +7,44 @@ A system that dynamically determines the best route for moving an order through 
 To build a production-quality backend/system-design project demonstrating real software engineering ability through C++, DSA, graph algorithms, LLD, HLD, Linux, concurrency, distributed systems, databases, caching, event-driven architecture, APIs, fault tolerance, scalability, Docker, and AWS.
 
 ## 3. Architecture
-Node.js API Layer -> (PostgreSQL, Redis, Kafka) -> C++ Routing Service -> Graph Engine -> Route Optimizer
+
+Here is the high-level system architecture showing how the microservices communicate:
+
+```mermaid
+graph TD
+    Client[API Client / CLI] -->|HTTP POST| NodeAPI[Node.js API Layer]
+    NodeAPI -->|Read/Write| Postgres[(PostgreSQL)]
+    NodeAPI -->|Cache Check| Redis[(Redis)]
+    NodeAPI -->|Pub/Sub| Kafka[Apache Kafka]
+    
+    Kafka -->|Consume Events| NodeAPI
+    NodeAPI -->|RPC / HTTP| CppEngine[C++ Routing Engine]
+    CppEngine -->|Calculates Routes| CppEngine
+```
+
+### Event-Driven Flow (How it works)
+When a failure occurs (e.g., a road closes), the system heals itself automatically:
+
+```mermaid
+sequenceDiagram
+    participant Admin
+    participant NodeAPI
+    participant Kafka
+    participant CppEngine
+    participant Redis
+    participant Postgres
+
+    Admin->>NodeAPI: POST /api/network/roads/close
+    NodeAPI->>Kafka: Publish ROAD_CLOSED
+    
+    Kafka->>NodeAPI: Consume ROAD_CLOSED
+    NodeAPI->>Redis: Invalidate affected cached routes
+    NodeAPI->>CppEngine: Update graph & recalculate active shipments
+    CppEngine-->>NodeAPI: Return recalculated shipments
+    
+    NodeAPI->>Postgres: Log route_history
+    NodeAPI->>Kafka: Publish ROUTE_RECALCULATED
+```
 
 ## 4. Tech Stack
 *   **Core Engine:** C++17, STL, Graph algorithms, Multithreading
