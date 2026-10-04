@@ -1,0 +1,5 @@
+node_modules/
+dist/
+routing-engine/build/
+.env
+.DS_Store
